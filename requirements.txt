@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pdfplumber
+python-dotenv
+openai
+httpx
+Jinja2
+aiofiles
+tqdm
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+python-multipart
+pydantic
+pypdfium2
+markdown

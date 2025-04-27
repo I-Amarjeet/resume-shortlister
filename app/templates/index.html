@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Shortlister</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <i class="fas fa-file-search logo"></i>
+                <h1>Resume Shortlister for AI Engineering Interns</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h2><i class="fas fa-upload"></i> Upload Resumes</h2>
+            <form action="/upload-local" method="post" enctype="multipart/form-data" id="uploadForm">
+                <div class="form-group">
+                    <label for="fileInput">Select all PDF resumes from your computer:</label>
+                    <div class="file-input-wrapper" style="width: 100%;">
+                        <div class="file-input-label" id="fileLabel">
+                            <i class="fas fa-file-pdf"></i> Choose PDF files
+                        </div>
+                        <input type="file" id="fileInput" name="files" accept="application/pdf" multiple required>
+                    </div>
+                    <div class="selected-files" id="selectedFiles">No files selected</div>
+                </div>
+                <button type="submit" class="btn btn-block">
+                    <i class="fas fa-upload"></i> Upload PDFs
+                </button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-cloud-download-alt"></i> Or Provide a Public Folder Link</h2>
+            <form action="/upload-drive" method="post">
+                <div class="form-group">
+                    <label for="folderUrl">Google Drive or public folder link:</label>
+                    <input type="url" id="folderUrl" name="folder_url" placeholder="https://drive.google.com/..." required>
+                </div>
+                <button type="submit" class="btn btn-block">
+                    <i class="fas fa-cloud-download-alt"></i> Fetch PDFs
+                </button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-info-circle"></i> How It Works</h2>
+            <ol>
+                <li>Upload your collection of resumes in PDF format</li>
+                <li>Our AI will analyze each resume based on technical skills, project complexity, and more</li>
+                <li>View a comprehensive report with rankings and detailed evaluations</li>
+                <li>Download the final shortlist in Markdown format</li>
+            </ol>
+            <p>This tool uses advanced AI to identify the most promising candidates for AI Engineering internship positions, saving you hours of manual review.</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Resume Shortlister © 2025 | AI-Powered Resume Analysis Tool</p>
+        </div>
+    </footer>
+
+    <script>
+        // Show selected files
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileLabel = document.getElementById('fileLabel');
+            const selectedFiles = document.getElementById('selectedFiles');
+            
+            if (this.files.length > 0) {
+                if (this.files.length === 1) {
+                    selectedFiles.textContent = `1 file selected: ${this.files[0].name}`;
+                } else {
+                    selectedFiles.textContent = `${this.files.length} files selected`;
+                    // Create a list of file names
+                    let fileList = document.createElement('ul');
+                    fileList.className = 'file-list';
+                    for (let i = 0; i < Math.min(this.files.length, 5); i++) {
+                        let item = document.createElement('li');
+                        item.textContent = this.files[i].name;
+                        fileList.appendChild(item);
+                    }
+                    if (this.files.length > 5) {
+                        let item = document.createElement('li');
+                        item.textContent = `...and ${this.files.length - 5} more files`;
+                        fileList.appendChild(item);
+                    }
+                    selectedFiles.textContent = '';
+                    selectedFiles.appendChild(fileList);
+                }
+                fileLabel.innerHTML = '<i class="fas fa-check"></i> Files selected';
+                fileLabel.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                fileLabel.style.borderColor = 'var(--success-color)';
+                fileLabel.style.color = 'var(--success-color)';
+            } else {
+                selectedFiles.textContent = 'No files selected';
+                fileLabel.innerHTML = '<i class="fas fa-file-pdf"></i> Choose PDF files';
+                fileLabel.style.backgroundColor = '';
+                fileLabel.style.borderColor = '';
+                fileLabel.style.color = '';
+            }
+        });
+
+        // Loading indicator
+        document.getElementById('uploadForm').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+            btn.disabled = true;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Extraction Summary - Resume Shortlister</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <i class="fas fa-file-search logo"></i>
+                <h1>Resume Shortlister</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h2><i class="fas fa-file-alt"></i> Resume Extraction Summary</h2>
+            <p>Below are the extracted text snippets from each uploaded PDF. These snippets will be used for AI analysis.</p>
+            
+            {% if error %}
+            <div class="banner banner-error">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+            
+            {% for item in summary %}
+                <div class="card candidate-card">
+                    <h3><i class="fas fa-file-pdf"></i> {{ item.filename }}</h3>
+                    <div style="background:var(--secondary-color); padding:1.5em; border-radius:8px; max-height:200px; overflow:auto; font-family: monospace; font-size: 0.9em; white-space: pre-wrap;">{{ item.snippet }}</div>
+                </div>
+            {% endfor %}
+            
+            <form action="/shortlist" method="post" id="shortlistForm">
+                <div class="card">
+                    <h3><i class="fas fa-cog"></i> Customize Analysis Settings (Optional)</h3>
+                    
+                    <div class="form-group">
+                        <label for="jobDescription">Job Description:</label>
+                        <textarea id="jobDescription" name="job_description" rows="5" class="form-control" placeholder="Paste your job description here to customize the analysis..."></textarea>
+                        <small class="form-text">Adding a job description will tailor the AI's analysis to your specific requirements.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <h4>Standard Evaluation Weights</h4>
+                        <p>Adjust the importance of each evaluation category:</p>
+                        
+                        <div class="weights-container">
+                            <div class="weight-item">
+                                <label for="technical_expertise">Technical Expertise:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="technical_expertise" name="weights_technical_expertise" min="0" max="100" value="35" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="weight-item">
+                                <label for="project_complexity">Project Complexity:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="project_complexity" name="weights_project_complexity" min="0" max="100" value="15" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="weight-item">
+                                <label for="hackathon_experience">Hackathon Experience:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="hackathon_experience" name="weights_hackathon_experience" min="0" max="100" value="25" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="weight-item">
+                                <label for="work_ethic">Work Ethic:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="work_ethic" name="weights_work_ethic" min="0" max="100" value="10" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="weight-item">
+                                <label for="extracurricular">Extracurricular:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="extracurricular" name="weights_extracurricular" min="0" max="100" value="10" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="weight-item">
+                                <label for="certifications">Certifications:</label>
+                                <div class="weight-input-container">
+                                    <input type="number" id="certifications" name="weights_certifications" min="0" max="100" value="5" class="weight-input standard-weight">
+                                    <span class="weight-suffix">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="standardWeightsError" class="error-message" style="display: none; color: #e53e3e; margin-top: 8px;">
+                            <i class="fas fa-exclamation-circle"></i> Standard weights must sum to 100%.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <h4>Custom Evaluation Criteria</h4>
+                        <p>Define your own custom evaluation criteria in addition to the standard ones:</p>
+                        
+                        <div id="customWeightsContainer" class="custom-weights-container">
+                            <!-- Custom weights will be added here dynamically -->
+                        </div>
+                        
+                        <div class="custom-weight-controls">
+                            <button type="button" id="addCustomWeight" class="btn btn-secondary">
+                                <i class="fas fa-plus"></i> Add Custom Criterion
+                            </button>
+                            <div id="customWeightsError" class="error-message" style="display: none;">
+                                <i class="fas fa-exclamation-circle"></i> All weights (standard + custom) must sum to 100%.
+                            </div>
+                            <div class="weight-total-indicator">
+                                Total Weight: <span id="totalWeightValue">100</span>%
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden field to store JSON of all custom weights -->
+                        <input type="hidden" name="custom_weights_json" id="customWeightsJson">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-block">
+                    <i class="fas fa-robot"></i> Shortlist Candidates with AI
+                </button>
+            </form>
+            
+            <div class="loading" id="loadingIndicator">
+                <div class="loading-spinner"></div>
+                <p>AI is analyzing the resumes. This may take a few minutes depending on the number of files...</p>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+            
+            <a href="/" class="back-link">Return to Upload Page</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Resume Shortlister © 2025 | AI-Powered Resume Analysis Tool</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize custom weights counter
+        let customWeightCount = 0;
+        
+        // Function to add a new custom weight field
+        function addCustomWeight() {
+            const container = document.getElementById('customWeightsContainer');
+            const weightId = `custom_weight_${customWeightCount}`;
+            
+            const weightItem = document.createElement('div');
+            weightItem.className = 'custom-weight-item';
+            weightItem.dataset.id = customWeightCount;
+            
+            weightItem.innerHTML = `
+                <div class="custom-weight-name">
+                    <input type="text" id="${weightId}_name" placeholder="Criterion Name" class="custom-weight-name-input">
+                </div>
+                <div class="custom-weight-description">
+                    <textarea id="${weightId}_description" rows="2" placeholder="Description of what to evaluate (skills, qualities, etc.)" class="custom-weight-description-input"></textarea>
+                </div>
+                <div class="custom-weight-value">
+                    <div class="weight-input-container">
+                        <input type="number" id="${weightId}_value" min="0" max="100" value="5" class="weight-input custom-weight-input">
+                        <span class="weight-suffix">%</span>
+                    </div>
+                </div>
+                <div class="custom-weight-actions">
+                    <button type="button" class="btn-icon delete-weight" onclick="removeCustomWeight(${customWeightCount})">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(weightItem);
+            customWeightCount++;
+            
+            // Update the weights and validation
+            updateTotalWeight();
+            
+            // Set focus on the new input
+            document.getElementById(`${weightId}_name`).focus();
+        }
+        
+        // Function to remove a custom weight
+        function removeCustomWeight(id) {
+            const container = document.getElementById('customWeightsContainer');
+            const weightItem = container.querySelector(`.custom-weight-item[data-id="${id}"]`);
+            
+            if (weightItem) {
+                container.removeChild(weightItem);
+                updateTotalWeight();
+            }
+        }
+        
+        // Function to calculate and update the total weight
+        function updateTotalWeight() {
+            // Get all standard weights
+            const standardWeights = Array.from(document.querySelectorAll('.standard-weight'))
+                .map(input => parseFloat(input.value) || 0);
+                
+            // Get all custom weights
+            const customWeights = Array.from(document.querySelectorAll('.custom-weight-input'))
+                .map(input => parseFloat(input.value) || 0);
+                
+            // Calculate total
+            const standardTotal = standardWeights.reduce((sum, weight) => sum + weight, 0);
+            const customTotal = customWeights.reduce((sum, weight) => sum + weight, 0);
+            const totalWeight = standardTotal + customTotal;
+            
+            // Update the display
+            document.getElementById('totalWeightValue').textContent = totalWeight.toFixed(0);
+            
+            // Show/hide error messages
+            const standardError = document.getElementById('standardWeightsError');
+            const customError = document.getElementById('customWeightsError');
+            
+            if (Math.abs(totalWeight - 100) > 0.5) {
+                customError.style.display = 'block';
+                return false;
+            } else {
+                standardError.style.display = 'none';
+                customError.style.display = 'none';
+                return true;
+            }
+        }
+        
+        // Function to gather all custom weights and store in hidden input
+        function collectCustomWeights() {
+            const customWeights = [];
+            
+            document.querySelectorAll('.custom-weight-item').forEach(item => {
+                const id = item.dataset.id;
+                const name = document.getElementById(`custom_weight_${id}_name`).value.trim();
+                const description = document.getElementById(`custom_weight_${id}_description`).value.trim();
+                const value = parseFloat(document.getElementById(`custom_weight_${id}_value`).value) || 0;
+                
+                if (name && value > 0) {
+                    customWeights.push({
+                        name: name,
+                        description: description,
+                        value: value / 100 // Convert to decimal for backend
+                    });
+                }
+            });
+            
+            // Set the JSON data in the hidden field
+            document.getElementById('customWeightsJson').value = JSON.stringify(customWeights);
+        }
+        
+        // Attach event listener to the "Add Custom Criterion" button
+        document.getElementById('addCustomWeight').addEventListener('click', addCustomWeight);
+        
+        // Attach weight change listeners
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('weight-input')) {
+                updateTotalWeight();
+            }
+        });
+        
+        // Validate form on submit
+        document.getElementById('shortlistForm').addEventListener('submit', function(e) {
+            if (!updateTotalWeight()) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Collect and store custom weights
+            collectCustomWeights();
+            
+            const btn = this.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting AI Analysis...';
+            btn.disabled = true;
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            // Simulate progress (since we can't know the actual progress)
+            const progressBar = document.getElementById('progressBar');
+            let progress = 0;
+            const interval = setInterval(() => {
+                // Progress more slowly as we approach 90%
+                const increment = progress < 50 ? 1 : (progress < 75 ? 0.5 : 0.2);
+                progress += increment;
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+                progressBar.style.width = `${progress}%`;
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

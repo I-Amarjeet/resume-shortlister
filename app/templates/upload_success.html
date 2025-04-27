@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Successful - Resume Shortlister</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <i class="fas fa-file-search logo"></i>
+                <h1>Resume Shortlister</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <div class="banner banner-success">
+                <i class="fas fa-check-circle"></i> PDF Upload Successful!
+            </div>
+            
+            <h2><i class="fas fa-file-pdf"></i> Uploaded Resumes</h2>
+            <p>The following PDF files have been uploaded and are ready for analysis:</p>
+            
+            <ul class="file-list">
+                {% for file in files %}
+                    <li>{{ file }}</li>
+                {% endfor %}
+            </ul>
+            
+            <form action="/analyze" method="post" id="analyzeForm">
+                <button type="submit" class="btn btn-block">
+                    <i class="fas fa-microscope"></i> Analyze Resumes
+                </button>
+            </form>
+            
+            <a href="/" class="back-link">Return to Upload Page</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Resume Shortlister © 2025 | AI-Powered Resume Analysis Tool</p>
+        </div>
+    </footer>
+
+    <script>
+        // Add loading indicator for analysis
+        document.getElementById('analyzeForm').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing Resumes...';
+            btn.disabled = true;
+        });
+    </script>
+</body>
+</html>

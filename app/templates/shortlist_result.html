@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shortlisted Candidates - Resume Shortlister</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-container">
+                <i class="fas fa-file-search logo"></i>
+                <h1>Resume Shortlister</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h2><i class="fas fa-trophy"></i> Shortlisted Candidates</h2>
+            <p>Our AI has analyzed all resumes and created this ranked shortlist of candidates. Use the download button to save this report.</p>
+            
+            <div class="banner banner-success">
+                <i class="fas fa-check-circle"></i> Analysis complete! Here are your shortlisted candidates.
+            </div>
+            
+            <div class="form-group">
+                <form method="post" action="/download-shortlist">
+                    <input type="hidden" name="shortlist_md" value="{{ shortlist_md | replace('"', '&quot;') }}">
+                    <button type="submit" class="btn">
+                        <i class="fas fa-download"></i> Download Markdown Report
+                    </button>
+                </form>
+            </div>
+            
+            <div class="markdown-content">
+                {{ shortlist_html | safe }}
+            </div>
+            
+            <a href="/" class="back-link">Start a New Analysis</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Resume Shortlister © 2025 | AI-Powered Resume Analysis Tool</p>
+        </div>
+    </footer>
+
+    <script>
+        // Add table class to all tables for styling
+        document.addEventListener('DOMContentLoaded', function() {
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                table.classList.add('data-table');
+            });
+            
+            // Create score bars for visual representation
+            const scoreBars = document.querySelectorAll('.markdown-content li');
+            scoreBars.forEach(item => {
+                if (item.textContent.includes('/5.0')) {
+                    const scoreMatch = item.textContent.match(/(\d+\.\d+)\/5\.0/);
+                    if (scoreMatch && scoreMatch[1]) {
+                        const score = parseFloat(scoreMatch[1]);
+                        const barPercentage = (score / 5) * 100;
+                        
+                        const barContainer = document.createElement('div');
+                        barContainer.className = 'score-bar';
+                        
+                        const barFill = document.createElement('div');
+                        barFill.className = 'score-fill';
+                        barFill.style.width = barPercentage + '%';
+                        
+                        barContainer.appendChild(barFill);
+                        item.appendChild(barContainer);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

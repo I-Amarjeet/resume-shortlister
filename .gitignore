@@ -1,0 +1,68 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+.ENV/
+resume/
+
+# PyCharm / IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Project specific
+instance/
+*.log
+logs/
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Uploaded files & temporary data
+app/uploads/
+app/temp/
+temp/
+uploaded_resumes/
+*.pdf
+!example.pdf
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# output files
+output/
