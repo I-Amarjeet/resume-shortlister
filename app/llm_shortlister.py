@@ -10,7 +10,7 @@ import random
 import json
 import re
 from dataclasses import dataclass, field
-from resume_processing import ResumeData
+from .resume_processing import ResumeData
 
 # Set up logging
 logging.basicConfig(
