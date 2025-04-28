@@ -419,6 +419,38 @@ footer a {
     font-size: 0.9em;
 }
 
+/* Comparison section styling */
+.comparison-section {
+    background-color: rgba(139, 92, 246, 0.1);
+    border-left: 4px solid var(--accent-color);
+    padding: 0.5rem 1rem;
+    margin-top: 2rem;
+    border-radius: 0 6px 6px 0;
+    color: #5b21b6;
+}
+
+.comparison-content {
+    background-color: rgba(139, 92, 246, 0.05);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.markdown-content h4 {
+    color: var(--accent-color);
+    margin-top: 1.2rem;
+    font-size: 1.1rem;
+}
+
+/* Skill gaps and strengths styling */
+.markdown-content ul li:has(strong:contains("Skill Gaps")),
+.markdown-content ul li:has(strong:contains("Relative Strengths")) {
+    background-color: rgba(139, 92, 246, 0.05);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
 /* Progress bar for analysis */
 .progress-container {
     width: 100%;

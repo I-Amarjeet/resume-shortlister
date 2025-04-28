@@ -9,8 +9,16 @@ from tqdm import tqdm
 import random
 import json
 import re
+import numpy as np
 from dataclasses import dataclass, field
-from .resume_processing import ResumeData
+
+# Handle imports to work both from app directory and project root
+try:
+    # Try direct import first (when running from app directory)
+    from resume_processing import ResumeData
+except ImportError:
+    # Fall back to package import (when running from project root)
+    from app.resume_processing import ResumeData
 
 # Set up logging
 logging.basicConfig(
@@ -42,18 +50,21 @@ EVAL_WEIGHTS = {
     "hackathon_experience": 0.25, # 25% for hackathon experience
     "work_ethic": 0.10,           # 10% for work ethic indicators
     "extracurricular": 0.10,      # 10% for relevant activities
-    "certifications": 0.5        # 5% for certifications
+    "certifications": 0.05        # 5% for certifications
 }
 
 @dataclass
 class CandidateEvaluation:
     """Evaluation result for a candidate."""
-    name: str = ""
     filename: str = ""
-    contact: str = ""
+    ranking: int = 0
+    name: str = ""
     email: str = ""
+    contact: str = ""
     github: str = ""
     linkedin: str = ""
+    
+    # Scores for each evaluation dimension
     technical_score: float = 0.0
     project_score: float = 0.0
     hackathon_score: float = 0.0
@@ -61,7 +72,8 @@ class CandidateEvaluation:
     extracurricular_score: float = 0.0
     certification_score: float = 0.0
     overall_score: float = 0.0
-    ranking: int = 0
+    
+    # Detailed assessment information
     technical_assessment: List[str] = field(default_factory=list)
     project_complexity: str = ""
     project_details: List[str] = field(default_factory=list)
@@ -70,7 +82,39 @@ class CandidateEvaluation:
     extracurricular_activities: List[str] = field(default_factory=list)
     certifications: List[str] = field(default_factory=list)
     remarks: str = ""
+    
+    # New fields for enhanced comparison
+    raw_skills: Dict[str, int] = field(default_factory=dict)
+    comparative_notes: str = ""
+    skill_gaps: List[str] = field(default_factory=list)
+    unique_strengths: List[str] = field(default_factory=list)
+    percentile_ranks: Dict[str, float] = field(default_factory=dict)
+    relative_strengths: List[str] = field(default_factory=list)
+    areas_for_improvement: List[str] = field(default_factory=list)
+    comparison_summary: str = ""
 
+    def recalculate_overall_score(self, weights: Dict[str, float] = None) -> None:
+        """Recalculate the overall score based on individual category scores after normalization."""
+        if weights is None:
+            weights = {
+                "technical_expertise": 0.35,
+                "project_complexity": 0.15,
+                "hackathon_experience": 0.25,
+                "work_ethic": 0.10,
+                "extracurricular": 0.10,
+                "certifications": 0.05
+            }
+        
+        self.overall_score = (
+            self.technical_score * weights.get("technical_expertise", 0.35) +
+            self.project_score * weights.get("project_complexity", 0.15) +
+            self.hackathon_score * weights.get("hackathon_experience", 0.25) +
+            self.work_ethic_score * weights.get("work_ethic", 0.10) +
+            self.extracurricular_score * weights.get("extracurricular", 0.10) +
+            self.certification_score * weights.get("certifications", 0.05)
+        )
+        self.overall_score = round(self.overall_score, 2)
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -97,7 +141,8 @@ class CandidateEvaluation:
                 "work_ethic_indicators": self.work_ethic_indicators,
                 "extracurricular_activities": self.extracurricular_activities,
                 "certifications": self.certifications,
-                "remarks": self.remarks
+                "remarks": self.remarks,
+                "comparative_notes": self.comparative_notes
             }
         }
 
@@ -168,6 +213,26 @@ class CandidateEvaluation:
 
         if self.remarks:
             md += f"\n### Summary\n{self.remarks}\n"
+            
+        # Add comparative notes if they exist
+        if self.comparative_notes:
+            md += f"\n### Comparative Analysis\n{self.comparative_notes}\n"
+            
+        # Add comparative ranking information if available
+        if hasattr(self, 'comparison_summary') and self.comparison_summary:
+            md += f"\n### Candidate Comparison\n{self.comparison_summary}\n"
+            
+        # Add relative strengths if available
+        if hasattr(self, 'relative_strengths') and self.relative_strengths:
+            md += "\n#### Relative Strengths\n"
+            for strength in self.relative_strengths:
+                md += f"- {strength}\n"
+                
+        # Add skills gap information if available
+        if hasattr(self, 'skill_gaps') and self.skill_gaps:
+            md += "\n#### Skill Gaps\n"
+            for gap in self.skill_gaps:
+                md += f"- {gap}\n"
 
         return md
 
@@ -569,6 +634,7 @@ def extract_candidate_evaluations(batch_results: List[Dict[str, Any]], batch: Li
             eval_obj.extracurricular_activities = details.get("extracurricular_activities", [])
             eval_obj.certifications = details.get("certifications", [])
             eval_obj.remarks = details.get("remarks", "")
+            eval_obj.comparative_notes = details.get("comparative_notes", "")
 
             evaluations.append(eval_obj)
 
@@ -899,8 +965,20 @@ async def shortlist_resumes(resume_texts: Dict[str, str], resume_data_dict: Dict
         if i < len(batches) - 1:
             await asyncio.sleep(current_delay)
 
+    # Apply normalization to ensure fair comparison across batches
+    normalized_evaluations = normalize_scores(all_evaluations)
+    
+    # Extract skills and keywords for better comparison
+    skills_data = extract_skills_and_keywords(normalized_evaluations)
+    
+    # Perform cross-candidate comparison to identify relative strengths
+    compared_evaluations = cross_candidate_comparison(normalized_evaluations, weights)
+    
+    # Identify skill gaps for each candidate
+    skill_gap_evaluations = identify_skill_gaps(compared_evaluations)
+    
     # Sort candidates by overall score and assign rankings
-    sorted_evaluations = sorted(all_evaluations, key=lambda x: x.overall_score, reverse=True)
+    sorted_evaluations = sorted(skill_gap_evaluations, key=lambda x: x.overall_score, reverse=True)
     for i, eval_obj in enumerate(sorted_evaluations, 1):
         eval_obj.ranking = i
 
@@ -921,3 +999,459 @@ async def shortlist_resumes(resume_texts: Dict[str, str], resume_data_dict: Dict
     final_result += candidate_table
 
     return final_result
+
+def normalize_scores(evaluations: List[CandidateEvaluation]) -> List[CandidateEvaluation]:
+    """
+    Normalize scores across all candidates to ensure fair comparison.
+    This is especially important when resumes are processed in different batches,
+    as it helps maintain consistent evaluation standards.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        
+    Returns:
+        List of evaluations with normalized scores
+    """
+    if not evaluations or len(evaluations) < 2:
+        return evaluations
+    
+    # Get min and max values for each score category
+    tech_scores = [e.technical_score for e in evaluations]
+    project_scores = [e.project_score for e in evaluations]
+    hackathon_scores = [e.hackathon_score for e in evaluations]
+    work_ethic_scores = [e.work_ethic_score for e in evaluations]
+    extracurricular_scores = [e.extracurricular_score for e in evaluations]
+    certification_scores = [e.certification_score for e in evaluations]
+    
+    # Calculate statistics for each category
+    categories = [
+        (tech_scores, "technical_score"),
+        (project_scores, "project_score"),
+        (hackathon_scores, "hackathon_score"),
+        (work_ethic_scores, "work_ethic_score"),
+        (extracurricular_scores, "extracurricular_score"),
+        (certification_scores, "certification_score")
+    ]
+    
+    for scores, attr_name in categories:
+        # Calculate mean and standard deviation
+        mean = sum(scores) / len(scores)
+        std_dev = (sum((x - mean) ** 2 for x in scores) / len(scores)) ** 0.5
+        
+        # If standard deviation is very small, skip normalization for this category
+        if std_dev < 0.1:
+            continue
+        
+        # Apply z-score normalization, then rescale to 0-5 range
+        for eval_obj in evaluations:
+            original_score = getattr(eval_obj, attr_name)
+            if std_dev > 0:
+                # Calculate z-score
+                z_score = (original_score - mean) / std_dev
+                # Convert z-score to 0-5 scale (most z-scores are between -3 and 3)
+                normalized_score = min(max((z_score + 3) / 6 * 5, 0), 5)
+                # Blend original score with normalized score to avoid extreme changes
+                blended_score = 0.7 * original_score + 0.3 * normalized_score
+                setattr(eval_obj, attr_name, blended_score)
+    
+    # Recalculate overall scores based on normalized category scores
+    for eval_obj in evaluations:
+        eval_obj.recalculate_overall_score()
+    
+    return evaluations
+
+def normalize_score(score: float, min_val: float, max_val: float) -> float:
+    """Normalize a score to range [0, 5]"""
+    # Handle edge case where all scores are identical
+    if max_val == min_val:
+        return score
+        
+    normalized = ((score - min_val) / (max_val - min_val)) * 5.0
+    return round(normalized, 2)
+
+def extract_skills_and_keywords(evaluations: List[CandidateEvaluation]) -> Dict[str, Dict[str, int]]:
+    """
+    Extract important skills and keywords from all candidates for better comparison.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        
+    Returns:
+        Dictionary mapping candidate names to their skills and frequencies
+    """
+    skills_by_candidate = {}
+    
+    # Common AI/ML keywords to look for
+    ai_ml_keywords = [
+        "python", "tensorflow", "pytorch", "keras", "scikit-learn", "sklearn",
+        "nlp", "computer vision", "cv", "deep learning", "machine learning", "ml", 
+        "ai", "neural network", "cnn", "rnn", "lstm", "transformer", "bert", 
+        "gpt", "llm", "language model", "rag", "vector database", "vectordb",
+        "embeddings", "classification", "clustering", "regression", "recommendation",
+        "fastapi", "flask", "django", "api", "rest", "streamlit", "dash",
+        "data science", "data analytics", "data engineering", "etl", "sql",
+        "nosql", "mongodb", "postgresql", "mysql", "database", "aws", "gcp", 
+        "azure", "cloud", "docker", "kubernetes", "k8s", "ci/cd", "mlops",
+        "hugging face", "langchain", "prompt engineering", "fine-tuning",
+        "hackathon", "competition", "kaggle", "github", "git", "open source"
+    ]
+    
+    for eval_obj in evaluations:
+        # Initialize skill dictionary for this candidate
+        candidate_name = eval_obj.name or f"Candidate {eval_obj.filename}"
+        skills_by_candidate[candidate_name] = {}
+        
+        # Process technical assessments
+        for assessment in eval_obj.technical_assessment:
+            for keyword in ai_ml_keywords:
+                if keyword.lower() in assessment.lower():
+                    skills_by_candidate[candidate_name][keyword] = skills_by_candidate[candidate_name].get(keyword, 0) + 1
+        
+        # Process project details
+        for project in eval_obj.project_details:
+            for keyword in ai_ml_keywords:
+                if keyword.lower() in project.lower():
+                    skills_by_candidate[candidate_name][keyword] = skills_by_candidate[candidate_name].get(keyword, 0) + 1
+        
+        # Store the raw skills in the candidate evaluation object for later use
+        eval_obj.raw_skills = skills_by_candidate[candidate_name]
+    
+    return skills_by_candidate
+
+def compare_candidates(evaluations: List[CandidateEvaluation], eval_weights: Dict[str, float]) -> List[CandidateEvaluation]:
+    """
+    Perform direct comparison between candidates to identify relative strengths and weaknesses.
+    This enhances the evaluation by considering how candidates compare to each other, not just
+    their individual scores.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        eval_weights: Dictionary of weights for different evaluation criteria
+        
+    Returns:
+        List of evaluations with comparative analysis
+    """
+    if not evaluations or len(evaluations) < 2:
+        return evaluations
+    
+    # Identify top candidates in each category
+    top_technical = sorted(evaluations, key=lambda x: x.technical_score, reverse=True)[:3]
+    top_project = sorted(evaluations, key=lambda x: x.project_score, reverse=True)[:3]
+    top_hackathon = sorted(evaluations, key=lambda x: x.hackathon_score, reverse=True)[:3]
+    top_work_ethic = sorted(evaluations, key=lambda x: x.work_ethic_score, reverse=True)[:3]
+    top_extracurricular = sorted(evaluations, key=lambda x: x.extracurricular_score, reverse=True)[:3]
+    top_certification = sorted(evaluations, key=lambda x: x.certification_score, reverse=True)[:3]
+    
+    # Find candidates who are in the top 3 for multiple categories
+    for eval_obj in evaluations:
+        strengths = []
+        if eval_obj in top_technical:
+            strengths.append("technical expertise")
+        if eval_obj in top_project:
+            strengths.append("project complexity")
+        if eval_obj in top_hackathon:
+            strengths.append("hackathon experience")
+        if eval_obj in top_work_ethic:
+            strengths.append("work ethic")
+        if eval_obj in top_extracurricular:
+            strengths.append("extracurricular activities")
+        if eval_obj in top_certification:
+            strengths.append("certifications")
+        
+        # Add comparative analysis to the remarks
+        if strengths:
+            relative_strength = f"Candidate is among the top performers in: {', '.join(strengths)}. "
+            if not eval_obj.remarks:
+                eval_obj.remarks = relative_strength
+            else:
+                eval_obj.remarks = relative_strength + eval_obj.remarks
+    
+    # Calculate percentile ranks for each candidate
+    num_candidates = len(evaluations)
+    for eval_obj in evaluations:
+        # Count how many candidates this one outperforms
+        outperforms_count = 0
+        for other in evaluations:
+            if eval_obj.overall_score > other.overall_score:
+                outperforms_count += 1
+        
+        # Calculate percentile (what percentage of candidates they outperform)
+        percentile = (outperforms_count / (num_candidates - 1)) * 100 if num_candidates > 1 else 100
+        
+        # Add percentile information to candidate evaluation
+        percentile_info = f"Outperforms {percentile:.0f}% of other candidates. "
+        if not eval_obj.remarks:
+            eval_obj.remarks = percentile_info
+        else:
+            eval_obj.remarks = percentile_info + eval_obj.remarks
+    
+    return evaluations
+
+def cross_candidate_comparison(evaluations: List[CandidateEvaluation]) -> List[CandidateEvaluation]:
+    """
+    Perform cross-candidate comparison to identify candidates' relative strengths and weaknesses.
+    This helps identify the best candidates by directly comparing them against the entire pool.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        
+    Returns:
+        List of evaluations with updated comparative insights
+    """
+    if not evaluations or len(evaluations) < 2:
+        return evaluations
+    
+    # Calculate category thresholds for top performers (top 20%)
+    num_candidates = len(evaluations)
+    top_count = max(1, num_candidates // 5)  # Top 20%
+    
+    # Sort candidates by each category
+    tech_sorted = sorted(evaluations, key=lambda x: x.technical_score, reverse=True)
+    project_sorted = sorted(evaluations, key=lambda x: x.project_score, reverse=True)
+    hackathon_sorted = sorted(evaluations, key=lambda x: x.hackathon_score, reverse=True)
+    work_ethic_sorted = sorted(evaluations, key=lambda x: x.work_ethic_score, reverse=True)
+    extracurricular_sorted = sorted(evaluations, key=lambda x: x.extracurricular_score, reverse=True)
+    cert_sorted = sorted(evaluations, key=lambda x: x.certification_score, reverse=True)
+    
+    # Identify top thresholds (score of the last candidate in the top performers)
+    categories = {
+        "technical": tech_sorted[top_count-1].technical_score if tech_sorted else 0,
+        "project": project_sorted[top_count-1].project_score if project_sorted else 0,
+        "hackathon": hackathon_sorted[top_count-1].hackathon_score if hackathon_sorted else 0,
+        "work_ethic": work_ethic_sorted[top_count-1].work_ethic_score if work_ethic_sorted else 0,
+        "extracurricular": extracurricular_sorted[top_count-1].extracurricular_score if extracurricular_sorted else 0,
+        "certification": cert_sorted[top_count-1].certification_score if cert_sorted else 0
+    }
+    
+    # Create percentile ranks for each candidate in each category
+    for i, eval_obj in enumerate(evaluations):
+        # Calculate percentile ranks (higher rank = better performance)
+        tech_rank = sum(1 for e in evaluations if e.technical_score < eval_obj.technical_score) / num_candidates * 100
+        project_rank = sum(1 for e in evaluations if e.project_score < eval_obj.project_score) / num_candidates * 100
+        hackathon_rank = sum(1 for e in evaluations if e.hackathon_score < eval_obj.hackathon_score) / num_candidates * 100
+        work_ethic_rank = sum(1 for e in evaluations if e.work_ethic_score < eval_obj.work_ethic_score) / num_candidates * 100
+        extracurricular_rank = sum(1 for e in evaluations if e.extracurricular_score < eval_obj.extracurricular_score) / num_candidates * 100
+        cert_rank = sum(1 for e in evaluations if e.certification_score < eval_obj.certification_score) / num_candidates * 100
+        
+        # Identify relative strengths (top 20% in category or 90+ percentile)
+        strengths = []
+        if eval_obj.technical_score >= categories["technical"] or tech_rank >= 90:
+            strengths.append("Technical Expertise")
+        if eval_obj.project_score >= categories["project"] or project_rank >= 90:
+            strengths.append("Project Complexity")
+        if eval_obj.hackathon_score >= categories["hackathon"] or hackathon_rank >= 90:
+            strengths.append("Hackathon Experience")
+        if eval_obj.work_ethic_score >= categories["work_ethic"] or work_ethic_rank >= 90:
+            strengths.append("Work Ethic")
+        if eval_obj.extracurricular_score >= categories["extracurricular"] or extracurricular_rank >= 90:
+            strengths.append("Extracurricular Activities")
+        if eval_obj.certification_score >= categories["certification"] or cert_rank >= 90:
+            strengths.append("Certifications")
+        
+        # Identify areas for improvement (bottom 30%)
+        areas_for_improvement = []
+        if tech_rank <= 30:
+            areas_for_improvement.append("Technical Expertise")
+        if project_rank <= 30:
+            areas_for_improvement.append("Project Complexity")
+        if hackathon_rank <= 30:
+            areas_for_improvement.append("Hackathon Experience")
+        if work_ethic_rank <= 30:
+            areas_for_improvement.append("Work Ethic")
+        if extracurricular_rank <= 30:
+            areas_for_improvement.append("Extracurricular Activities")
+        if cert_rank <= 30:
+            areas_for_improvement.append("Certifications")
+        
+        # Store comparative insights
+        eval_obj.percentile_ranks = {
+            "technical": tech_rank,
+            "project": project_rank,
+            "hackathon": hackathon_rank,
+            "work_ethic": work_ethic_rank,
+            "extracurricular": extracurricular_rank,
+            "certification": cert_rank
+        }
+        eval_obj.relative_strengths = strengths
+        eval_obj.areas_for_improvement = areas_for_improvement
+        
+        # Generate comprehensive comparison summary
+        eval_obj.comparison_summary = generate_comparison_summary(eval_obj, strengths, areas_for_improvement)
+    
+    return evaluations
+
+
+def generate_comparison_summary(eval_obj: CandidateEvaluation, strengths: List[str], areas_for_improvement: List[str]) -> str:
+    """Generate a summary of the candidate's performance relative to others."""
+    if not strengths and not areas_for_improvement:
+        return "No comparative data available."
+    
+    summary_parts = []
+    
+    # Add strengths to summary
+    if strengths:
+        if len(strengths) == 1:
+            summary_parts.append(f"Stands out in {strengths[0]} compared to other candidates.")
+        else:
+            strength_text = ", ".join(strengths[:-1]) + " and " + strengths[-1] if len(strengths) > 1 else strengths[0]
+            summary_parts.append(f"Demonstrates exceptional abilities in {strength_text} relative to the candidate pool.")
+    
+    # Add areas for improvement to summary
+    if areas_for_improvement:
+        if "Hackathon Experience" in areas_for_improvement and eval_obj.hackathon_score == 0:
+            areas_for_improvement.remove("Hackathon Experience")
+            summary_parts.append("No hackathon experience, which is common among many candidates.")
+        
+        if areas_for_improvement:
+            improvement_text = ", ".join(areas_for_improvement[:-1]) + " and " + areas_for_improvement[-1] if len(areas_for_improvement) > 1 else areas_for_improvement[0]
+            summary_parts.append(f"Could improve in {improvement_text} compared to top performers.")
+    
+    # Add overall standing
+    if eval_obj.overall_score >= 4.0:
+        summary_parts.append("Overall, ranks among the top candidates in this pool.")
+    elif eval_obj.overall_score >= 3.5:
+        summary_parts.append("Overall, shows strong potential relative to most candidates.")
+    elif eval_obj.overall_score >= 3.0:
+        summary_parts.append("Shows average performance compared to the entire candidate pool.")
+    else:
+        summary_parts.append("Overall ranking is below average in this competitive candidate pool.")
+    
+    return " ".join(summary_parts)
+
+def cross_candidate_comparison(evaluations: List[CandidateEvaluation], weights: Dict[str, float]) -> List[CandidateEvaluation]:
+    """
+    Compare candidates directly against each other to identify strongest candidates.
+    This enhances the evaluation by adding relative comparison data.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        weights: Dictionary of evaluation weights
+        
+    Returns:
+        Enhanced list of evaluations with comparative data
+    """
+    if not evaluations or len(evaluations) < 2:
+        return evaluations
+    
+    # Find top candidates in each category
+    top_technical = sorted(evaluations, key=lambda x: x.technical_score, reverse=True)[:5]
+    top_project = sorted(evaluations, key=lambda x: x.project_score, reverse=True)[:5]
+    top_hackathon = sorted(evaluations, key=lambda x: x.hackathon_score, reverse=True)[:5]
+    top_work_ethic = sorted(evaluations, key=lambda x: x.work_ethic_score, reverse=True)[:5]
+    top_extracurricular = sorted(evaluations, key=lambda x: x.extracurricular_score, reverse=True)[:5]
+    top_certification = sorted(evaluations, key=lambda x: x.certification_score, reverse=True)[:5]
+    
+    # Identify candidates who are consistently strong across multiple categories
+    consistent_performers = []
+    for eval_obj in evaluations:
+        strong_categories = 0
+        if eval_obj in top_technical:
+            strong_categories += 1
+        if eval_obj in top_project:
+            strong_categories += 1
+        if eval_obj in top_hackathon:
+            strong_categories += 1
+        if eval_obj in top_work_ethic:
+            strong_categories += 1
+        if eval_obj in top_extracurricular:
+            strong_categories += 1
+        if eval_obj in top_certification:
+            strong_categories += 1
+            
+        # If strong in at least 3 categories, mark as a consistent performer
+        if strong_categories >= 3:
+            consistent_performers.append(eval_obj)
+            
+    # Apply a small bonus to consistent performers
+    consistency_bonus = 0.15  # Small enough not to overwhelm original scores
+    for eval_obj in consistent_performers:
+        # Apply bonus weighted by the importance of each category
+        eval_obj.technical_score += consistency_bonus * weights.get("technical_expertise", 0.35)
+        eval_obj.project_score += consistency_bonus * weights.get("project_complexity", 0.25)
+        eval_obj.hackathon_score += consistency_bonus * weights.get("hackathon_experience", 0.10)
+        eval_obj.work_ethic_score += consistency_bonus * weights.get("work_ethic", 0.15)
+        eval_obj.extracurricular_score += consistency_bonus * weights.get("extracurricular", 0.10)
+        eval_obj.certification_score += consistency_bonus * weights.get("certifications", 0.05)
+        
+        # Cap scores at 5.0
+        eval_obj.technical_score = min(5.0, eval_obj.technical_score)
+        eval_obj.project_score = min(5.0, eval_obj.project_score)
+        eval_obj.hackathon_score = min(5.0, eval_obj.hackathon_score)
+        eval_obj.work_ethic_score = min(5.0, eval_obj.work_ethic_score)
+        eval_obj.extracurricular_score = min(5.0, eval_obj.extracurricular_score)
+        eval_obj.certification_score = min(5.0, eval_obj.certification_score)
+        
+        # Recalculate overall score
+        eval_obj.overall_score = calculate_overall_score(eval_obj, weights)
+        
+        # Add note about consistency in remarks
+        if eval_obj.remarks:
+            eval_obj.remarks += " Demonstrates consistent excellence across multiple evaluation categories."
+        else:
+            eval_obj.remarks = "Demonstrates consistent excellence across multiple evaluation categories."
+            
+    return evaluations
+
+def calculate_overall_score(eval_obj: CandidateEvaluation, weights: Dict[str, float]) -> float:
+    """Calculate the overall score based on individual scores and weights"""
+    score = (
+        eval_obj.technical_score * weights.get("technical_expertise", 0.35) +
+        eval_obj.project_score * weights.get("project_complexity", 0.25) +
+        eval_obj.hackathon_score * weights.get("hackathon_experience", 0.10) +
+        eval_obj.work_ethic_score * weights.get("work_ethic", 0.15) +
+        eval_obj.extracurricular_score * weights.get("extracurricular", 0.10) +
+        eval_obj.certification_score * weights.get("certifications", 0.05)
+    )
+    return round(score, 2)
+
+def identify_skill_gaps(evaluations: List[CandidateEvaluation]) -> List[CandidateEvaluation]:
+    """
+    Identify skill gaps for each candidate by comparing their skills against top performers.
+    This helps highlight what skills candidates are missing compared to the best candidates.
+    
+    Args:
+        evaluations: List of candidate evaluations
+        
+    Returns:
+        List of evaluations with updated skill gap information
+    """
+    if not evaluations or len(evaluations) < 3:  # Need at least 3 candidates for meaningful comparison
+        return evaluations
+    
+    # Identify top 20% of candidates
+    sorted_by_score = sorted(evaluations, key=lambda x: x.overall_score, reverse=True)
+    top_count = max(2, len(evaluations) // 5)  # At least 2 candidates, or 20% of total
+    top_candidates = sorted_by_score[:top_count]
+    
+    # Get combined skills from top candidates (with frequency count)
+    top_skills = {}
+    for candidate in top_candidates:
+        for skill, count in candidate.raw_skills.items():
+            top_skills[skill] = top_skills.get(skill, 0) + count
+    
+    # Find the most common skills among top performers (occurring in at least 50% of top candidates)
+    key_skills = []
+    for skill, count in top_skills.items():
+        if count >= top_count // 2:  # Skill appears in at least half of top candidates
+            key_skills.append(skill)
+    
+    # For each candidate, identify missing key skills
+    for eval_obj in evaluations:
+        missing_skills = []
+        for skill in key_skills:
+            if skill not in eval_obj.raw_skills:
+                missing_skills.append(skill)
+        
+        # Add top 3 most important missing skills to the candidate evaluation
+        if missing_skills:
+            eval_obj.skill_gaps = missing_skills[:3]
+            
+            # Add skill gap information to comparative notes
+            if missing_skills:
+                gap_text = f"Compared to top candidates, missing key skills: {', '.join(missing_skills[:3])}"
+                if not eval_obj.comparative_notes:
+                    eval_obj.comparative_notes = gap_text
+                else:
+                    eval_obj.comparative_notes += f". {gap_text}"
+    
+    return evaluations

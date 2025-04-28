@@ -14,6 +14,9 @@ Resume Shortlister processes hundreds of PDF resumes, extracting structured info
 
 - **Batch Processing**: Efficiently handles 250+ resumes, with optimized performance for large datasets
 - **Intelligent Extraction**: Extracts structured data (name, contact details, education, experience) from PDFs
+- **Cross-Candidate Comparison**: Directly compares candidates against each other to identify relative strengths
+- **Skill Gap Analysis**: Identifies missing skills by comparing against top performers in the candidate pool
+- **Score Normalization**: Ensures fair comparison across different batches of resumes
 - **Custom Evaluation Weights**: Configure your own weights for different evaluation criteria
 - **Comprehensive Reports**: Generates detailed Markdown reports with executive summary and individual evaluations
 - **Web Interface**: Optional FastAPI web application for interactive usage
@@ -113,9 +116,12 @@ The generated Markdown report includes:
 
 2. **Detailed Candidate Evaluations**:
    - Contact information (name, email, GitHub, LinkedIn)
-   - Scores for each evaluation criterion
+   - Scores for each evaluation criterion with visual ratings
    - Technical assessment in bullet points
    - Project complexity rating with details
+   - Comparative analysis against other candidates
+   - Identified skill gaps compared to top performers
+   - Relative strengths in the candidate pool
    - Other criterion-specific details
    - Overall remarks
 
@@ -148,12 +154,12 @@ Our most recent evaluation analyzed 18 candidates for AI engineering internships
 Score: 3.65/5.0
 
 Key Scores:
-- Technical Expertise: 4.0/5.0
-- Project Complexity: 4.0/5.0
-- Hackathon Experience: 2.0/5.0
-- Work Ethic: 4.0/5.0
-- Extracurricular Activities: 2.0/5.0
-- Certifications: 3.0/5.0
+- Technical Expertise: ████░ 4.0/5.0
+- Project Complexity: ████░ 4.0/5.0
+- Hackathon Experience: ██░░░ 2.0/5.0
+- Work Ethic: ████░ 4.0/5.0
+- Extracurricular Activities: ██░░░ 2.0/5.0
+- Certifications: ███░░ 3.0/5.0
 
 Technical Skills:
 - Experience with YOLOv11 for pose estimation in fitness tracking
@@ -164,9 +170,27 @@ Projects:
 - Voice-enabled AI fitness tracker using YOLOv11 and OpenCV
 - CNN-based image classifier with hyperparameter tuning
 - Student information management system
+
+Comparative Analysis:
+Outperforms 75% of other candidates. Demonstrates exceptional abilities in Technical Expertise and Work Ethic relative to the candidate pool.
+
+Skill Gaps:
+- Natural Language Processing
+- Fine-tuning LLMs
+- Vector database experience
 ```
 
 ## 🔧 Advanced Features
+
+### Cross-Candidate Comparison
+
+The system now includes advanced comparative analysis:
+
+1. **Relative Strength Detection**: Identifies each candidate's strengths relative to the entire pool
+2. **Skill Gap Analysis**: Compares candidates against top performers to identify missing critical skills
+3. **Percentile Ranking**: Shows how each candidate ranks against others in each evaluation category
+4. **Score Normalization**: Ensures fair comparison across different batches of processed resumes
+5. **Consistency Recognition**: Identifies and rewards candidates who demonstrate excellence across multiple categories
 
 ### Custom Job Descriptions
 
@@ -236,3 +260,9 @@ Please make sure to update tests as appropriate.
 - [Azure OpenAI](https://azure.microsoft.com/en-us/services/cognitive-services/openai/) for the powerful LLM capabilities
 - [PDFPlumber](https://github.com/jsvine/pdfplumber) and [PyPDFium2](https://github.com/pypdfium2-team/pypdfium2) for PDF extraction
 - [FastAPI](https://fastapi.tiangolo.com/) for the web interface
+
+## 👨‍💻 Author
+
+Built with ❤️ by [Amarjeet](https://github.com/I-Amarjeet), CEO and Founder of [NeuDayAI](https://neudayai.com).
+
+This project is open source under the [MIT License](LICENSE).

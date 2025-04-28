@@ -20,7 +20,7 @@
     <main class="container">
         <div class="card">
             <h2><i class="fas fa-trophy"></i> Shortlisted Candidates</h2>
-            <p>Our AI has analyzed all resumes and created this ranked shortlist of candidates. Use the download button to save this report.</p>
+            <p>Our AI has analyzed all resumes and created this ranked shortlist of candidates. The analysis includes cross-candidate comparisons and identifies skill gaps.</p>
             
             <div class="banner banner-success">
                 <i class="fas fa-check-circle"></i> Analysis complete! Here are your shortlisted candidates.
@@ -45,7 +45,8 @@
 
     <footer>
         <div class="container">
-            <p>Resume Shortlister © 2025 | AI-Powered Resume Analysis Tool</p>
+            <p>Resume Shortlister | Built with ❤️ by <a href="https://github.com/I-Amarjeet" target="_blank">Amarjeet</a>, CEO and Founder of <a href="https://www.neudayai.com" target="_blank">NeuDayAI</a></p>
+            <p>Open Source under MIT License</p>
         </div>
     </footer>
 
@@ -75,6 +76,24 @@
                         
                         barContainer.appendChild(barFill);
                         item.appendChild(barContainer);
+                    }
+                }
+            });
+            
+            // Style for comparative analysis sections
+            const comparisonSections = document.querySelectorAll('h3, h4');
+            comparisonSections.forEach(section => {
+                if (section.textContent.includes('Comparative Analysis') || 
+                    section.textContent.includes('Candidate Comparison') ||
+                    section.textContent.includes('Relative Strengths') ||
+                    section.textContent.includes('Skill Gaps')) {
+                    section.classList.add('comparison-section');
+                    
+                    // Add special styling to the section's content
+                    let nextEl = section.nextElementSibling;
+                    while (nextEl && (nextEl.tagName === 'P' || nextEl.tagName === 'UL')) {
+                        nextEl.classList.add('comparison-content');
+                        nextEl = nextEl.nextElementSibling;
                     }
                 }
             });

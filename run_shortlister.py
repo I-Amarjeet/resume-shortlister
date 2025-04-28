@@ -1,8 +1,22 @@
 import os
 import sys
 import asyncio
-from app.resume_processing import extract_text_from_pdfs
-from app.llm_shortlister import shortlist_resumes, EVAL_WEIGHTS
+# Add the app directory to the sys.path if it's not already there
+current_dir = os.path.dirname(os.path.abspath(__file__))
+app_dir = os.path.join(current_dir, "app")
+if os.path.exists(app_dir) and app_dir not in sys.path:
+    sys.path.append(app_dir)
+
+# Handle imports to work in both scenarios
+try:
+    # When running from project root
+    from app.resume_processing import extract_text_from_pdfs
+    from app.llm_shortlister import shortlist_resumes, EVAL_WEIGHTS
+except ImportError:
+    # When running from the same directory as the app
+    from resume_processing import extract_text_from_pdfs
+    from llm_shortlister import shortlist_resumes, EVAL_WEIGHTS
+
 from tqdm import tqdm
 from datetime import datetime
 import time
@@ -173,8 +187,8 @@ Examples:
         """
     )
     parser.add_argument('pdf_folder', nargs='?',
-                        default="/Users/itscodezero/Documents/NeuDayAI/Hiring/VIIT Internships 2025/NeuDayAI   _ Upload resume (File responses)",
-                        help='Folder containing PDF resumes to analyze (default: NeuDayAI upload folder)')
+                        default=None,
+                        help='Folder containing PDF resumes to analyze (default: None)')
     parser.add_argument('-o', '--output', 
                         help='Output markdown file (default: shortlist_YYYYMMDD_HHMMSS.md)')
     parser.add_argument('-w', '--weights', 
@@ -192,7 +206,20 @@ Examples:
         logging.info(f"Please make sure the resume directory exists or provide a valid path")
         return False
     
-    output_md = args.output if args.output else f"shortlist_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    # Set up the output directory
+    output_dir = os.path.join(current_dir, "output")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # If output path is provided, use it as is; otherwise create a timestamped file in the output directory
+    if args.output:
+        # If a relative path was provided, make it relative to the output directory
+        if not os.path.isabs(args.output):
+            output_md = os.path.join(output_dir, args.output)
+        else:
+            output_md = args.output
+    else:
+        # Create a timestamped file in the output directory
+        output_md = os.path.join(output_dir, f"shortlist_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md")
     
     # Parse weights if provided
     weights = parse_weights(args.weights) if args.weights else None
