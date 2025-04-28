@@ -30,7 +30,7 @@ Resume Shortlister processes hundreds of PDF resumes, extracting structured info
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/resume-shortlister.git
+git clone git@github.com:I-Amarjeet/resume-shortlister.git
 cd resume-shortlister
 ```
 
